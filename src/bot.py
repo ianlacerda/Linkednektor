@@ -8,6 +8,7 @@ from src.db import init_db, is_profile_contacted, add_contacted_profile
 
 
 active_pause_event = None
+NOTES_BLOCKED_BY_PREMIUM = False
 
 
 def check_pause(pause_event=None):
@@ -979,20 +980,40 @@ def handle_connection_dialog(page, note_text=""):
                 pass
         
         if is_premium_visible:
-            print("    ⚠️ Premium limitation modal detected! Dismissing and falling back to send without note...")
-            page.keyboard.press("Escape")
-            time.sleep(1.0)
+            print("    ⚠️ Premium limitation modal detected! Closing all modals and retrying connection request without note...")
+            global NOTES_BLOCKED_BY_PREMIUM
+            NOTES_BLOCKED_BY_PREMIUM = True
             
-            cancel_labels = ["Cancel", "Cancelar", "Voltar", "Go back"]
-            for lbl in cancel_labels:
+            # Dismiss premium modal by clicking close button first (X icon)
+            close_clicked = False
+            close_selectors = [
+                "button[aria-label*='Close']",
+                "button[aria-label*='close']",
+                "button[aria-label*='Fechar']",
+                "button[aria-label*='fechar']",
+                "button[aria-label*='Dismiss']",
+                "button[aria-label*='dismiss']",
+                "button.artdeco-modal__dismiss",
+                "[data-test-modal] button[aria-label*='Dismiss']",
+                "[data-test-modal] button.artdeco-modal__dismiss",
+            ]
+            for sel in close_selectors:
                 try:
-                    loc = page.locator(f"button:has-text('{lbl}')")
+                    loc = page.locator(sel)
                     if loc.count() > 0 and loc.first.is_visible(timeout=1000):
                         loc.first.click(timeout=2000)
-                        time.sleep(1.0)
+                        close_clicked = True
                         break
                 except:
                     pass
+            
+            if not close_clicked:
+                page.keyboard.press("Escape")
+            time.sleep(1.0)
+            
+            # Clean up all other overlays
+            dismiss_overlays(page)
+            time.sleep(1.0)
             return True
         return False
 
@@ -1035,7 +1056,11 @@ def handle_connection_dialog(page, note_text=""):
 
         # Check if clicking "Add a note" triggered a premium upgrade modal
         if check_and_handle_premium():
-            note_clicked = False
+            print("    🔄 Retrying connection without note...")
+            res = find_connect_button_on_profile(page)
+            if res == "found":
+                return handle_connection_dialog(page, note_text="")
+            return False
 
         if note_clicked:
             human_delay(1, 2)
@@ -1094,7 +1119,11 @@ def handle_connection_dialog(page, note_text=""):
                         # Wait a bit and check if a premium modal popped up after clicking send
                         time.sleep(1.5)
                         if check_and_handle_premium():
-                            pass
+                            print("    🔄 Retrying connection without note...")
+                            res = find_connect_button_on_profile(page)
+                            if res == "found":
+                                return handle_connection_dialog(page, note_text="")
+                            return False
                         else:
                             success = True
                 except Exception as ex:
@@ -1216,6 +1245,7 @@ def process_page_via_profiles(page, max_left, note_text="", search_url=None, pau
                     add_contacted_profile(profile_url, profile_name, "sent")
                 else:
                     print(f"  {t('unexpected_state')}")
+                    save_html_debug(page, profile_name)
                     dismiss_overlays(page)
                     consecutive_failures += 1
 
@@ -1263,6 +1293,8 @@ def process_page_via_profiles(page, max_left, note_text="", search_url=None, pau
 
 
 def run_bot(city, job, title, num_pages, hiring, note_text="", on_complete=None, pause_event=None):
+    global NOTES_BLOCKED_BY_PREMIUM
+    NOTES_BLOCKED_BY_PREMIUM = False
     init_db()
     keyword = urllib.parse.quote(job)
     user_data_dir = os.path.join(
