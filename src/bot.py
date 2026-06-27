@@ -942,7 +942,7 @@ def find_connect_button_on_profile(page):
 
 
 def handle_connection_dialog(page, note_text=""):
-    """Handles the connection invitation dialog with note limit warning."""
+    """Handles the connection invitation dialog with note limit warning and Premium fallback."""
     human_delay(1.5, 3)
 
     dialog_visible = False
@@ -965,6 +965,39 @@ def handle_connection_dialog(page, note_text=""):
     if not dialog_visible:
         return True
 
+    # Helper function to check and handle premium modal
+    def check_and_handle_premium():
+        premium_indicators = ["Premium", "Upgrade", "limite", "limit", "assinar", "subscribe", "personalizada", "personalized"]
+        is_premium_visible = False
+        for ind in premium_indicators:
+            loc = page.locator(f"div.artdeco-modal:has-text('{ind}')")
+            try:
+                if loc.count() > 0 and loc.first.is_visible(timeout=1000):
+                    is_premium_visible = True
+                    break
+            except:
+                pass
+        
+        if is_premium_visible:
+            print("    ⚠️ Premium limitation modal detected! Dismissing and falling back to send without note...")
+            page.keyboard.press("Escape")
+            time.sleep(1.0)
+            
+            cancel_labels = ["Cancel", "Cancelar", "Voltar", "Go back"]
+            for lbl in cancel_labels:
+                try:
+                    loc = page.locator(f"button:has-text('{lbl}')")
+                    if loc.count() > 0 and loc.first.is_visible(timeout=1000):
+                        loc.first.click(timeout=2000)
+                        time.sleep(1.0)
+                        break
+                except:
+                    pass
+            return True
+        return False
+
+    success = False
+    
     if note_text:
         # Enforce 300 character safety margin
         if len(note_text) > 300:
@@ -1000,6 +1033,10 @@ def handle_connection_dialog(page, note_text=""):
             if note_clicked:
                 break
 
+        # Check if clicking "Add a note" triggered a premium upgrade modal
+        if check_and_handle_premium():
+            note_clicked = False
+
         if note_clicked:
             human_delay(1, 2)
 
@@ -1025,88 +1062,91 @@ def handle_connection_dialog(page, note_text=""):
                     break
 
             if textarea:
-                textarea.click(timeout=3000)
-                human_delay(0.3, 0.5)
-                textarea.fill("")
-                human_delay(0.3, 0.5)
+                try:
+                    textarea.click(timeout=3000)
+                    human_delay(0.3, 0.5)
+                    textarea.fill("")
+                    human_delay(0.3, 0.5)
 
-                for char in note_text:
-                    textarea.type(char, delay=random.randint(30, 80))
+                    for char in note_text:
+                        textarea.type(char, delay=random.randint(30, 80))
 
-                print(f"    {t('note_added')}")
-                human_delay(1, 2)
+                    print(f"    {t('note_added')}")
+                    human_delay(1, 2)
+                    
+                    # Try to click Send
+                    send_labels = [
+                        t("li_send_now"), "Send now", "Enviar agora",
+                        t("li_send"), "Send", "Enviar"
+                    ]
+                    sent_clicked = False
+                    for label in send_labels:
+                        loc = page.locator(f"button:has-text('{label}')")
+                        if loc.count() > 0:
+                            try:
+                                loc.first.click(timeout=5000)
+                                sent_clicked = True
+                                break
+                            except:
+                                pass
+                    
+                    if sent_clicked:
+                        # Wait a bit and check if a premium modal popped up after clicking send
+                        time.sleep(1.5)
+                        if check_and_handle_premium():
+                            pass
+                        else:
+                            success = True
+                except Exception as ex:
+                    print(f"    ⚠️ Note typing or sending failed: {ex}")
             else:
                 print(f"    {t('note_failed')}")
-        else:
-            print(f"    {t('note_failed')}")
 
-    send_labels = [
-        t("li_send_no_note"),
-        "Send without a note", "Enviar sem nota",
-        t("li_send_now"),
-        "Send now", "Enviar agora",
-    ]
-
-    if note_text:
+    # Fallback / Direct Send (without note or if note sending was blocked)
+    if not success:
+        print(f"    {t('sent_direct')}")
         send_labels = [
-            t("li_send_now"), "Send now", "Enviar agora",
-            t("li_send"), "Send", "Enviar",
             t("li_send_no_note"),
             "Send without a note", "Enviar sem nota",
+            t("li_send_now"),
+            "Send now", "Enviar agora",
+            t("li_send"), "Send", "Enviar"
         ]
 
-    seen = set()
-    unique_labels = []
-    for lbl in send_labels:
-        if lbl not in seen:
-            seen.add(lbl)
-            unique_labels.append(lbl)
+        seen = set()
+        unique_labels = []
+        for lbl in send_labels:
+            if lbl not in seen:
+                seen.add(lbl)
+                unique_labels.append(lbl)
 
-    for label in unique_labels:
-        loc = page.get_by_role("button", name=label)
-        if loc.count() > 0:
-            try:
-                loc.first.click(timeout=5000)
-                return True
-            except:
-                pass
-        loc2 = page.locator(f"button:has-text('{label}')")
-        if loc2.count() > 0:
-            try:
-                loc2.first.click(timeout=5000)
-                return True
-            except:
-                pass
+        for label in unique_labels:
+            loc = page.get_by_role("button", name=label)
+            if loc.count() > 0:
+                try:
+                    loc.first.click(timeout=5000)
+                    return True
+                except:
+                    pass
+            loc2 = page.locator(f"button:has-text('{label}')")
+            if loc2.count() > 0:
+                try:
+                    loc2.first.click(timeout=5000)
+                    return True
+                except:
+                    pass
 
-    send_generic = [t("li_send"), "Send", "Enviar"]
-    seen2 = set()
-    unique_generic = []
-    for lbl in send_generic:
-        if lbl not in seen2:
-            seen2.add(lbl)
-            unique_generic.append(lbl)
+        # Ultimate fallback buttons
+        for label in ["Send", "Enviar"]:
+            loc3 = page.locator(f"button:has-text('{label}')")
+            if loc3.count() > 0:
+                try:
+                    loc3.first.click(timeout=5000)
+                    return True
+                except:
+                    pass
 
-    for label in unique_generic:
-        loc = page.get_by_role("button", name=label, exact=True)
-        if loc.count() > 0:
-            try:
-                loc.first.click(timeout=5000)
-                return True
-            except:
-                pass
-
-    loc3 = page.locator(
-        "button:has-text('Send'), "
-        "button:has-text('Enviar')"
-    )
-    if loc3.count() > 0:
-        try:
-            loc3.first.click(timeout=5000)
-            return True
-        except:
-            pass
-
-    return False
+    return success
 
 
 def process_page_via_profiles(page, max_left, note_text="", search_url=None, pause_event=None):
