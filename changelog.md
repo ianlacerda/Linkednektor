@@ -2,6 +2,14 @@
 
 History of implementations and iterations on the project.
 
+## [v0.6.8] — Free Account Premium Warning Fallback
+
+### 🐛 Fixed
+- **Premium Limitation Fallback**: Resolved a bug where connection request invites failed on LinkedIn Free accounts due to monthly personalized note limits. The bot now actively detects upgrade/premium limitation modals, closes them by targeting their specific close/dismiss button selectors (or Escape as fallback), clears all modal overlays, and automatically retries the connection request without a note recursively.
+- **Global Note Skipping**: Sets a session-wide flag `NOTES_BLOCKED_BY_PREMIUM` upon detection to directly skip note logic for all subsequent profiles in the run.
+
+---
+
 ## [v0.6.7] — Database Reset & Clear History GUI Feature
 
 ### ✨ Added
