@@ -17,3 +17,8 @@ debug_dumps/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Media files
+*.mp4
+*.avi
+*.mov

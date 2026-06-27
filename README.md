@@ -11,6 +11,12 @@
 
 **Smart and ultra-resilient automation tool for sending LinkedIn connection invites with simulated human behavior and full control via GUI.**
 
+<br />
+
+![Linkednektor GUI](LinkedNektor_UI.png)
+
+<br />
+
 [Features](#-features) •
 [Installation](#-installation) •
 [How to Use](#-how-to-use) •
