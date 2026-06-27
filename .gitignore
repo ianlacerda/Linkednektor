@@ -1,0 +1,19 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases
+linkednektor.db
+linkednektor.db-journal
+
+# Chrome User Profile directories (if placed in project root)
+linkednektor_profile/
+*profile/
+
+# Debug dumps
+debug_dumps/
+
+# OS files
+.DS_Store
+Thumbs.db
