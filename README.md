@@ -9,113 +9,109 @@
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 ![Status](https://img.shields.io/badge/Status-Active-brightgreen)
 
-**Automação inteligente e ultra-resiliente para envio de convites de conexão no LinkedIn com comportamento humano simulado e controle total via interface gráfica.**
+**Smart and ultra-resilient automation tool for sending LinkedIn connection invites with simulated human behavior and full control via GUI.**
 
-[Funcionalidades](#-funcionalidades) •
-[Instalação](#-instalação) •
-[Como Usar](#-como-usar) •
-[Arquitetura](#-arquitetura) •
-[Segurança e GitHub](#-segurança-e-github)
+[Features](#-features) •
+[Installation](#-installation) •
+[How to Use](#-how-to-use) •
+[Architecture](#-architecture) •
+[Security & Git](#-security--git)
 
 </div>
 
 ---
 
-## 📋 Sobre o Projeto
+## 📋 About the Project
 
-O **Linkednektor** é uma ferramenta de automação desktop desenvolvida em Python para profissionais de recrutamento, marketing e vendas. O programa automatiza o fluxo de busca de pessoas no LinkedIn, aplicação de filtros regionais/cargos e envio de convites de conexão de forma extremamente natural, simulando o comportamento de um usuário real e registrando os contatos para evitar interações duplicadas.
+**Linkednektor** is a desktop automation tool developed in Python for recruitment, marketing, and sales professionals. The program automates the process of searching for people on LinkedIn, applying regional/title filters, and sending connection invites in a highly natural way, simulating real user behavior and logging contacts to prevent duplicate interactions.
 
 ---
 
-## ✨ Funcionalidades
+## ✨ Features
 
-| Funcionalidade | Descrição |
+| Feature | Description |
 |---|---|
-| 🔍 **Busca por Palavras-chave** | Pesquisa automática por cargos, competências ou qualquer termo de busca. |
-| 📍 **Filtro de Localidade** | Aplica o filtro geográfico nativo do LinkedIn. |
-| 🏢 **Filtro "Contratando Já"** | Filtra perfis que possuem vagas ativas e o selo "Hiring". |
-| 💾 **Sessão Persistente** | Salva os cookies e o perfil do navegador Playwright localmente para que você só precise fazer login uma vez. |
-| 💾 **Banco de Dados SQLite3** | Registra perfis processados (`sent` ou `already_connected`) em um banco local (`linkednektor.db`). O bot pula automaticamente contatos já abordados. |
-| ⏸️ **Controles de Pausa/Retomada** | Botão de Pausar e Retomar na interface gráfica com interrupção e retomada imediata (thread-safe). |
-| 📱 **Suporte a Layout Responsivo** | Detecta elementos tanto na versão desktop quanto mobile-responsiva do LinkedIn (tratando botões do tipo `<a>` e wrappers complexos do `Topcard`). |
-| 🚫 **Filtro de Conexões Mútuas** | Ignora links de conexões em comum listados abaixo do card principal na pesquisa. |
-| 📸 **Debug Dumps Automáticos** | Em caso de erro na página de busca ou perfil, o bot salva um screenshot (`.png`) e o código-fonte (`.html`) na pasta `debug_dumps/` e gera links clicáveis no terminal. |
-| 🧹 **Limpar Histórico** | Botão na interface do usuário para limpar o banco de dados de histórico com diálogo de confirmação. |
+| 🔍 **Keyword Search** | Automatically search by job title, skill, or any keyword on the "People" tab. |
+| 📍 **Location Filter** | Applies LinkedIn's native geographical filter for a specific city/region. |
+| 🏢 **"Hiring" Filter** | Filters profiles that have active job openings and the "Hiring" banner. |
+| 💾 **Persistent Session** | Saves browser cookies and Playwright profile locally so you only need to log in once. |
+| 💾 **SQLite3 Database** | Registers processed profiles (`sent` or `already_connected`) in a local database (`linkednektor.db`). The bot automatically skips already approached contacts. |
+| ⏸️ **Pause/Resume Controls** | Tkinter GUI buttons for instant, thread-safe pause and resume operations. |
+| 📱 **Responsive Layout Support** | Detects elements in both desktop and mobile-responsive layouts of LinkedIn (handling link-based `<a>` buttons and complex `Topcard` wrappers). |
+| 🚫 **Mutual Connections Filter** | Ignores mutual connection links listed below search result cards. |
+| 📸 **Automatic Debug Dumps** | If an error occurs on a search or profile page, the bot automatically saves a screenshot (`.png`) and the HTML source (`.html`) in the `debug_dumps/` directory, logging clickable links in the console. |
+| 🧹 **Clear History** | GUI button to reset the local history database with a confirmation dialog. |
 
 ---
 
-## 📦 Instalação
+## 📦 Installation
 
-### Pré-requisitos
+### Prerequisites
 
-- Python 3.8 ou superior instalado.
-- Google Chrome instalado.
-- Gerenciador de pacotes `pip` instalado.
+- Python 3.8 or higher installed.
+- Google Chrome installed.
+- `pip` package manager installed.
 
-### Passo a Passo
+### Step-by-Step
 
-1. **Crie um diretório e acesse-o:**
+1. **Clone the repository:**
    ```bash
+   git clone https://github.com/ianlacerda/Linkednektor.git
    cd Linkednektor
    ```
 
-2. **Crie e ative um ambiente virtual (recomendado):**
+2. **Create and activate a virtual environment (recommended):**
    ```bash
    python -m venv venv
-   # No Windows (PowerShell):
+   # On Windows (PowerShell):
    .\venv\Scripts\Activate.ps1
-   # No Linux/Mac:
+   # On Linux/Mac:
    source venv/bin/activate
    ```
 
-3. **Instale as dependências:**
+3. **Install the dependencies:**
    ```bash
    pip install playwright
    ```
 
-4. **Instale os binários de navegador do Playwright:**
+4. **Install Playwright browser binaries:**
    ```bash
    playwright install chromium
    ```
 
-5. **Inicie o programa:**
+5. **Run the program:**
    ```bash
    python main.py
    ```
 
 ---
 
-## 🖥️ Como Usar
+## 🖥️ How to Use
 
-1. Execute `python main.py` para abrir a interface gráfica.
-2. Insira o termo de busca (ex: `Design Recruiter`).
-3. (Opcional) Digite a cidade para filtragem regional.
-4. Selecione a quantidade de páginas do LinkedIn a pesquisar.
-5. Se desejar, marque **Contratando já** e insira o cargo da vaga.
-6. Clique em **🚀 Iniciar Buscas**.
-7. Na primeira execução, o navegador abrirá para que você faça login manualmente. Uma vez logado, o bot salvará a sessão.
-8. Para reiniciar os testes ou limpar contatos antigos, clique no botão **🧹 Limpar Histórico** na interface gráfica.
+1. Run `python main.py` to open the graphic interface.
+2. Enter the search term (e.g., `Design Recruiter`).
+3. (Optional) Type the city for regional filtering.
+4. Select the number of LinkedIn pages to scan.
+5. If desired, check **Hiring now** and enter the hiring job title.
+6. Click **🚀 Start Search**.
+7. On the first run, the browser will open for you to log in manually. Once logged in, the bot will save your session.
+8. To reset tests or clear old contacted records, click **🧹 Clear History** in the GUI.
 
 ---
 
-## 🔒 Segurança e GitHub
+## 🔒 Security & Git
 
-### 1. Repositório Privado (Acesso por Senha)
-Para garantir que o código de automação e dados internos permaneçam protegidos, **crie o repositório como PRIVADO no GitHub**. 
-* Apenas usuários convidados explicitamente por você terão acesso ao código.
-* O acesso de leitura e escrita é protegido pelas credenciais do GitHub (Token de Acesso Pessoal ou chaves SSH).
-
-### 2. Proteção de Dados Sensíveis
-O projeto inclui um arquivo `.gitignore` configurado para **nunca** subir arquivos locais com dados pessoais ou de sessão para o GitHub:
-* 🔴 `linkednektor.db` (histórico de perfis contatados).
-* 🔴 `linkednektor_profile/` (cookies de login e credenciais do LinkedIn no Chrome).
-* 🔴 `debug_dumps/` (screenshots e páginas HTML de auditoria).
+### 1. Protecting Sensitive Data
+The project includes a `.gitignore` configured to **never** upload local files containing personal data or active login sessions to GitHub:
+* 🔴 `linkednektor.db` (local database history).
+* 🔴 `linkednektor_profile/` (Chrome cookies and active LinkedIn credentials).
+* 🔴 `debug_dumps/` (auditing screenshots and HTML dumps).
 
 > [!WARNING]
-> Nunca delete ou altere a pasta `linkednektor_profile/` no `.gitignore`. Ela contém suas credenciais ativas do LinkedIn.
+> Never delete or modify the `linkednektor_profile/` entry in `.gitignore`. It contains your live LinkedIn credentials.
 
 ---
 
-## 📄 Licença
+## 📄 License
 
-Este projeto está sob a licença MIT. Veja o arquivo LICENSE para mais detalhes.
+This project is licensed under the MIT License. See the LICENSE file for details.
