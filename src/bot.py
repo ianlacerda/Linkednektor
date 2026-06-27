@@ -980,11 +980,11 @@ def handle_connection_dialog(page, note_text=""):
                 pass
         
         if is_premium_visible:
-            print("    ⚠️ Premium limitation modal detected! Closing all modals and retrying connection request without note...")
+            print("    ⚠️ Premium limitation modal detected! Handling fallback...")
             global NOTES_BLOCKED_BY_PREMIUM
             NOTES_BLOCKED_BY_PREMIUM = True
             
-            # Dismiss premium modal by clicking close button first (X icon)
+            # 1. Close premium modal by clicking close button first (X icon)
             close_clicked = False
             close_selectors = [
                 "button[aria-label*='Close']",
@@ -1009,12 +1009,41 @@ def handle_connection_dialog(page, note_text=""):
             
             if not close_clicked:
                 page.keyboard.press("Escape")
-            time.sleep(1.0)
+            time.sleep(1.5) # Let close animation complete
             
-            # Clean up all other overlays
-            dismiss_overlays(page)
-            time.sleep(1.0)
-            return True
+            # 2. Try to click Cancel (Cancelar) on the note editor to go back to the main invitation dialog
+            cancel_clicked = False
+            cancel_labels = ["Cancel", "Cancelar", "Voltar", "Go back"]
+            for lbl in cancel_labels:
+                try:
+                    loc = page.locator(f"button:has-text('{lbl}')")
+                    if loc.count() > 0 and loc.first.is_visible(timeout=1000):
+                        loc.first.click(timeout=2000)
+                        cancel_clicked = True
+                        time.sleep(1.0)
+                        break
+                except:
+                    pass
+            
+            # 3. Check if the connection dialog is still visible
+            dialog_visible = False
+            dialog_selectors = ["div[role='dialog']", "div.artdeco-modal", "div.send-invite"]
+            for ds in dialog_selectors:
+                try:
+                    if page.locator(ds).first.is_visible(timeout=1000):
+                        dialog_visible = True
+                        break
+                except:
+                    pass
+            
+            if dialog_visible:
+                print("    ✅ Successfully returned to the main invitation dialog.")
+                return False # Stay in modal flow
+            else:
+                print("    🔄 Connection dialog closed. Doing a clean retry from the profile page...")
+                dismiss_overlays(page)
+                time.sleep(2.0) # Let backdrop overlays fully fade out
+                return True # Clean retry
         return False
 
     success = False
