@@ -1,3 +1,17 @@
+import sys
+if sys.platform.startswith("win"):
+    import io
+    if hasattr(sys.stdout, "buffer"):
+        try:
+            sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+        except:
+            pass
+    if hasattr(sys.stderr, "buffer"):
+        try:
+            sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+        except:
+            pass
+
 import time
 import random
 import urllib.parse
@@ -806,12 +820,13 @@ def find_connect_button_on_profile(page):
             for i in range(loc.count()):
                 try:
                     el = loc.nth(i)
-                    if el.is_visible(timeout=1000):
+                    if el.is_visible():
                         label = el.get_attribute("aria-label") or ""
                         text = el.inner_text() or ""
                         href = el.get_attribute("href") or ""
                         if any(term.lower() in label.lower() or term.lower() in text.lower() or "invite" in href.lower() or "connect" in href.lower() for term in ["conectar", "connect", "convidar", "invite"]):
-                            el.click(timeout=5000)
+                            # Click via JS evaluation to avoid header interception
+                            el.evaluate("el => el.click()")
                             print(f"  🎯 Connect button for {vanity_name} clicked via vanity selector!")
                             return True
                 except:
@@ -854,9 +869,9 @@ def find_connect_button_on_profile(page):
             for i in range(loc.count()):
                 try:
                     el = loc.nth(i)
-                    if el.is_visible(timeout=2000):
+                    if el.is_visible():
                         try:
-                            el.click(timeout=5000)
+                            el.evaluate("el => el.click()")
                             print(f"  {t('connect_visible')}")
                             return "found"
                         except:
@@ -864,7 +879,7 @@ def find_connect_button_on_profile(page):
                             if tag == "span":
                                 parent_btn = el.locator("xpath=..")
                                 if parent_btn.count() > 0:
-                                    parent_btn.first.click(timeout=5000)
+                                    parent_btn.first.evaluate("el => el.click()")
                                     print(f"  {t('connect_visible')}")
                                     return "found"
                             raise
@@ -895,7 +910,7 @@ def find_connect_button_on_profile(page):
             for i in range(loc.count()):
                 try:
                     el = loc.nth(i)
-                    if el.is_visible(timeout=2000):
+                    if el.is_visible():
                         more_btn = el
                         break
                 except:
@@ -907,7 +922,7 @@ def find_connect_button_on_profile(page):
 
     if more_btn:
         try:
-            more_btn.click(timeout=5000)
+            more_btn.evaluate("el => el.click()")
             human_delay(1, 2)
 
             # Check if there are "already connected / remove connection" indicators in the dropdown
@@ -963,15 +978,15 @@ def find_connect_button_on_profile(page):
                     for i in range(loc.count()):
                         try:
                             el = loc.nth(i)
-                            if el.is_visible(timeout=2000):
+                            if el.is_visible():
                                 try:
-                                    el.click(timeout=5000)
+                                    el.evaluate("el => el.click()")
                                     print(f"  {t('connect_in_more')}")
                                     return "found"
                                 except:
                                     parent_item = el.locator("xpath=ancestor::div[contains(@class,'artdeco-dropdown__item') or @role='menuitem' or contains(@class,'dropdown')]")
                                     if parent_item.count() > 0:
-                                        parent_item.first.click(timeout=5000)
+                                        parent_item.first.evaluate("el => el.click()")
                                         print(f"  {t('connect_in_more')}")
                                         return "found"
                                     else:
@@ -992,19 +1007,21 @@ def find_connect_button_on_profile(page):
 
 
 def is_invitation_dialog_visible(page):
-    """Checks if a visible dialog containing invitation terms (and not premium warnings) is present."""
-    dialog_selectors = ["dialog", "div[role='dialog']", "div.artdeco-modal", "div[data-test-modal]"]
-    for sel in dialog_selectors:
-        loc = page.locator(sel)
+    """Checks if a visible dialog containing invitation terms is present."""
+    invitation_indicators = [
+        "personalizar convite",
+        "customize your invitation",
+        "adicionar nota",
+        "add a note",
+        "enviar sem nota",
+        "send without a note",
+    ]
+    for ind in invitation_indicators:
+        loc = page.get_by_text(ind, exact=False)
         for i in range(loc.count()):
             try:
-                el = loc.nth(i)
-                if el.is_visible(timeout=500):
-                    text = el.inner_text() or ""
-                    has_conn = any(term in text for term in ["nota", "note", "personalizar", "customize", "convite", "invitation"])
-                    has_premium = any(term in text for term in ["Reative o Premium", "Upgrade", "limite", "limit"])
-                    if has_conn and not has_premium:
-                        return True
+                if loc.nth(i).is_visible():
+                    return True
             except:
                 pass
     return False
@@ -1012,17 +1029,29 @@ def is_invitation_dialog_visible(page):
 
 def is_premium_modal_visible(page):
     """Checks if a visible dialog containing premium upgrade/limit warning terms is present."""
-    dialog_selectors = ["dialog", "div[role='dialog']", "div[data-test-modal]", "div.artdeco-modal"]
-    premium_indicators = ["Premium", "Upgrade", "limite", "limit", "assinar", "subscribe", "personalizada", "personalized", "reative"]
-    for sel in dialog_selectors:
-        loc = page.locator(sel)
+    premium_unique_indicators = [
+        # Portuguese
+        "reative o premium",
+        "reativar o premium",
+        "adquira o premium",
+        "notas personalizadas gratuitas",
+        "ultrapasse o limite com premium",
+        "limite de notas",
+        "envie quantos convites personalizados",
+        # English
+        "out of free personalized notes",
+        "go beyond the limit with premium",
+        "reactivate premium",
+        "personalized invite limit",
+        "personalized invitation limit",
+        "upgrade to premium",
+    ]
+    for ind in premium_unique_indicators:
+        loc = page.get_by_text(ind, exact=False)
         for i in range(loc.count()):
             try:
-                el = loc.nth(i)
-                if el.is_visible(timeout=500):
-                    text = el.inner_text() or ""
-                    if any(ind.lower() in text.lower() for ind in premium_indicators):
-                        return True
+                if loc.nth(i).is_visible():
+                    return True
             except:
                 pass
     return False
@@ -1044,7 +1073,7 @@ def handle_connection_dialog(page, note_text=""):
         loc = page.locator(ds)
         if loc.count() > 0:
             try:
-                if loc.first.is_visible(timeout=3000):
+                if loc.first.is_visible():
                     dialog_visible = True
                     break
             except:
@@ -1068,16 +1097,18 @@ def handle_connection_dialog(page, note_text=""):
                 "button[aria-label*='Fechar' i]",
                 "button[aria-label*='Dismiss' i]",
                 "button[aria-label*='Descartar' i]",
-                "dialog button[aria-label*='Fechar' i]",
-                "dialog button[aria-label*='Close' i]",
                 "button.artdeco-modal__dismiss",
             ]
             for sel in close_selectors:
                 try:
                     loc = page.locator(sel)
-                    if loc.count() > 0 and loc.first.is_visible(timeout=1000):
-                        loc.first.click(timeout=2000)
-                        close_clicked = True
+                    for i in range(loc.count()):
+                        el = loc.nth(i)
+                        if el.is_visible():
+                            el.evaluate("el => el.click()")
+                            close_clicked = True
+                            break
+                    if close_clicked:
                         break
                 except:
                     pass
@@ -1092,10 +1123,14 @@ def handle_connection_dialog(page, note_text=""):
             for lbl in cancel_labels:
                 try:
                     loc = page.locator(f"button:has-text('{lbl}')")
-                    if loc.count() > 0 and loc.first.is_visible(timeout=1000):
-                        loc.first.click(timeout=2000)
-                        cancel_clicked = True
-                        time.sleep(1.0)
+                    for i in range(loc.count()):
+                        el = loc.nth(i)
+                        if el.is_visible():
+                            el.evaluate("el => el.click()")
+                            cancel_clicked = True
+                            time.sleep(1.0)
+                            break
+                    if cancel_clicked:
                         break
                 except:
                     pass
@@ -1137,8 +1172,8 @@ def handle_connection_dialog(page, note_text=""):
                 for i in range(loc.count()):
                     try:
                         el = loc.nth(i)
-                        if el.is_visible(timeout=2000):
-                            el.click(timeout=5000)
+                        if el.is_visible():
+                            el.evaluate("el => el.click()")
                             note_clicked = True
                             break
                     except:
@@ -1148,31 +1183,50 @@ def handle_connection_dialog(page, note_text=""):
             if note_clicked:
                 break
 
-        # Check if clicking "Add a note" triggered a premium upgrade modal
-        if check_and_handle_premium():
-            print("    🔄 Retrying connection without note...")
-            res = find_connect_button_on_profile(page)
-            if res == "found":
-                return handle_connection_dialog(page, note_text="")
-            return False
-
         if note_clicked:
-            human_delay(1, 2)
+            # Wait for either the textarea or the premium modal to appear (timing safety)
+            textarea_visible = False
+            premium_visible = False
+            for _ in range(12): # 3.0 seconds max wait
+                if is_premium_modal_visible(page):
+                    premium_visible = True
+                    break
+                textarea_loc = page.locator("textarea[name='message'], textarea#custom-message, textarea.connect-button-send-invite__custom-message, textarea")
+                any_textarea = False
+                for i in range(textarea_loc.count()):
+                    try:
+                        if textarea_loc.nth(i).is_visible():
+                            any_textarea = True
+                            break
+                    except:
+                        pass
+                if any_textarea:
+                    textarea_visible = True
+                    break
+                time.sleep(0.25)
 
+            if premium_visible:
+                # Trigger premium warning modal fallback!
+                if check_and_handle_premium():
+                    print("    🔄 Retrying connection without note...")
+                    res = find_connect_button_on_profile(page)
+                    if res == "found":
+                        return handle_connection_dialog(page, note_text="")
+                    return False
+
+            textarea = None
             textarea_selectors = [
                 "textarea[name='message']",
                 "textarea#custom-message",
                 "textarea.connect-button-send-invite__custom-message",
                 "textarea",
             ]
-
-            textarea = None
             for ts in textarea_selectors:
                 loc = page.locator(ts)
                 for i in range(loc.count()):
                     try:
                         el = loc.nth(i)
-                        if el.is_visible(timeout=2000):
+                        if el.is_visible():
                             textarea = el
                             break
                     except:
@@ -1182,7 +1236,7 @@ def handle_connection_dialog(page, note_text=""):
 
             if textarea:
                 try:
-                    textarea.click(timeout=3000)
+                    textarea.evaluate("el => el.focus()")
                     human_delay(0.3, 0.5)
                     textarea.fill("")
                     human_delay(0.3, 0.5)
@@ -1201,23 +1255,36 @@ def handle_connection_dialog(page, note_text=""):
                     sent_clicked = False
                     for label in send_labels:
                         loc = page.locator(f"button:has-text('{label}')")
-                        if loc.count() > 0:
+                        for i in range(loc.count()):
                             try:
-                                loc.first.click(timeout=5000)
-                                sent_clicked = True
-                                break
+                                el = loc.nth(i)
+                                if el.is_visible():
+                                    el.evaluate("el => el.click()")
+                                    sent_clicked = True
+                                    break
                             except:
                                 pass
+                        if sent_clicked:
+                            break
                     
                     if sent_clicked:
-                        # Wait a bit and check if a premium modal popped up after clicking send
-                        time.sleep(1.5)
-                        if check_and_handle_premium():
-                            print("    🔄 Retrying connection without note...")
-                            res = find_connect_button_on_profile(page)
-                            if res == "found":
-                                return handle_connection_dialog(page, note_text="")
-                            return False
+                        # Wait for either dialog to disappear or premium modal to appear
+                        premium_appeared = False
+                        for _ in range(12): # 3.0 seconds max
+                            if is_premium_modal_visible(page):
+                                premium_appeared = True
+                                break
+                            if not is_invitation_dialog_visible(page):
+                                break
+                            time.sleep(0.25)
+                            
+                        if premium_appeared:
+                            if check_and_handle_premium():
+                                print("    🔄 Retrying connection without note...")
+                                res = find_connect_button_on_profile(page)
+                                if res == "found":
+                                    return handle_connection_dialog(page, note_text="")
+                                return False
                         else:
                             success = True
                 except Exception as ex:
@@ -1245,27 +1312,33 @@ def handle_connection_dialog(page, note_text=""):
 
         for label in unique_labels:
             loc = page.get_by_role("button", name=label)
-            if loc.count() > 0:
+            for i in range(loc.count()):
                 try:
-                    loc.first.click(timeout=5000)
-                    return True
+                    el = loc.nth(i)
+                    if el.is_visible():
+                        el.evaluate("el => el.click()")
+                        return True
                 except:
                     pass
             loc2 = page.locator(f"button:has-text('{label}')")
-            if loc2.count() > 0:
+            for i in range(loc2.count()):
                 try:
-                    loc2.first.click(timeout=5000)
-                    return True
+                    el = loc2.nth(i)
+                    if el.is_visible():
+                        el.evaluate("el => el.click()")
+                        return True
                 except:
                     pass
 
         # Ultimate fallback buttons
         for label in ["Send", "Enviar"]:
             loc3 = page.locator(f"button:has-text('{label}')")
-            if loc3.count() > 0:
+            for i in range(loc3.count()):
                 try:
-                    loc3.first.click(timeout=5000)
-                    return True
+                    el = loc3.nth(i)
+                    if el.is_visible():
+                        el.evaluate("el => el.click()")
+                        return True
                 except:
                     pass
 

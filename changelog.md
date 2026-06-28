@@ -2,9 +2,12 @@
 
 History of implementations and iterations on the project.
 
-## [v0.6.9] — Smart Vanity-Name Targeting & Obfuscation-Resistant Dialog Handling
+## [v0.6.9] — Smart Vanity-Name Targeting, JS Click Evaluation & Polling-Based Fallbacks
 
 ### 🐛 Fixed
+- **JavaScript Click Evaluation**: Replaced physical coordinate-based clicks on profile Connect buttons with programmatic JS click evaluation (`el.evaluate("el => el.click()")`) to prevent clicks from being intercepted by LinkedIn's sticky navigation bar or fixed page headers.
+- **Polling Safety Loops**: Implemented a 3.0-second polling mechanism to wait for either the note text box or the Premium blocker modal to become visible after connection triggers, avoiding timing race conditions and ensuring the Premium warning popup is caught reliably.
+- **Unicode Console Protection**: Reconfigured `sys.stdout` and `sys.stderr` on Windows platforms to use UTF-8 with character replacement, preventing the application from crashing with `UnicodeEncodeError` when writing emojis (like 🎯 or ❌) to non-UTF-8 terminals.
 - **Vanity-Name Targeting**: Directly targets the profile owner's Connect button/link by extracting their unique vanity name from the current page URL, ensuring the bot never clicks adjacent "People also viewed" sidebar connection triggers.
 - **Obfuscation-Resistant Dialog Detection**: Upgraded modal checking to dynamically scan for native HTML5 `<dialog>` elements and `[role='dialog']` elements containing premium warning terms, bypassing LinkedIn's obfuscated class names.
 - **Case-Insensitive Close Buttons**: Targets the close icon/button of popups using Playwright/CSS case-insensitive flags (`button[aria-label*='Fechar' i]`, `button[aria-label*='Close' i]`), improving dismiss reliability.
