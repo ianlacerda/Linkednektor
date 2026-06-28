@@ -2,6 +2,16 @@
 
 History of implementations and iterations on the project.
 
+## [v0.6.9] — Smart Vanity-Name Targeting & Obfuscation-Resistant Dialog Handling
+
+### 🐛 Fixed
+- **Vanity-Name Targeting**: Directly targets the profile owner's Connect button/link by extracting their unique vanity name from the current page URL, ensuring the bot never clicks adjacent "People also viewed" sidebar connection triggers.
+- **Obfuscation-Resistant Dialog Detection**: Upgraded modal checking to dynamically scan for native HTML5 `<dialog>` elements and `[role='dialog']` elements containing premium warning terms, bypassing LinkedIn's obfuscated class names.
+- **Case-Insensitive Close Buttons**: Targets the close icon/button of popups using Playwright/CSS case-insensitive flags (`button[aria-label*='Fechar' i]`, `button[aria-label*='Close' i]`), improving dismiss reliability.
+- **Accurate Flow Routing**: Differentiates between connection modal and blocker overlays to accurately decide whether to stay in the current modal flow or proceed with a clean, overlay-free profile page retry.
+
+---
+
 ## [v0.6.8] — Free Account Premium Warning Fallback
 
 ### 🐛 Fixed

@@ -760,7 +760,7 @@ def find_connect_button_on_profile(page):
     """
     # Wait for the action buttons container to render (SPA loading protection)
     try:
-        page.wait_for_selector(".pvs-profile-actions, .pv-top-card-v2-ctas, a[href*='contact-info']", timeout=8000)
+        page.wait_for_selector(".pvs-profile-actions, .pv-top-card, [componentkey*='Topcard'], a[href*='contact-info']", timeout=8000)
     except:
         pass
 
@@ -780,6 +780,49 @@ def find_connect_button_on_profile(page):
             except:
                 pass
 
+    # Extract vanity name from URL to target the correct connect button
+    vanity_name = ""
+    try:
+        parsed = urllib.parse.urlparse(page.url)
+        path_parts = [p for p in parsed.path.split('/') if p]
+        if len(path_parts) >= 2 and path_parts[0] == "in":
+            vanity_name = path_parts[1]
+    except Exception as e:
+        print(f"  ⚠️ Error parsing vanity name from URL: {e}")
+
+    # Helper to try vanity-based selectors
+    def try_vanity_selectors():
+        if not vanity_name:
+            return False
+        vanity_selectors = [
+            f"a[href*='custom-invite'][href*='{vanity_name}']",
+            f"a[href*='connect'][href*='{vanity_name}']",
+            f"a[href*='{vanity_name}'][aria-label*='conectar' i]",
+            f"a[href*='{vanity_name}'][aria-label*='connect' i]",
+            f"a[href*='{vanity_name}']",
+        ]
+        for sel in vanity_selectors:
+            loc = page.locator(sel)
+            for i in range(loc.count()):
+                try:
+                    el = loc.nth(i)
+                    if el.is_visible(timeout=1000):
+                        label = el.get_attribute("aria-label") or ""
+                        text = el.inner_text() or ""
+                        href = el.get_attribute("href") or ""
+                        if any(term.lower() in label.lower() or term.lower() in text.lower() or "invite" in href.lower() or "connect" in href.lower() for term in ["conectar", "connect", "convidar", "invite"]):
+                            el.click(timeout=5000)
+                            print(f"  🎯 Connect button for {vanity_name} clicked via vanity selector!")
+                            return True
+                except:
+                    continue
+        return False
+
+    # 1. Try to find and click the connect button using vanity name first
+    if try_vanity_selectors():
+        return "found"
+
+    # Fallback to text-based selectors for the topcard
     connect_terms = [t("li_connect"), t("li_connect_alt"), "Connect", "Conectar"]
     seen_terms = set()
     unique_connect = []
@@ -828,6 +871,7 @@ def find_connect_button_on_profile(page):
                 except:
                     continue
 
+    # 2. Try the "More" dropdown
     more_terms = ["More", "Mais"]
     more_btn = None
     header_containers = [
@@ -866,7 +910,7 @@ def find_connect_button_on_profile(page):
             more_btn.click(timeout=5000)
             human_delay(1, 2)
 
-            # Check if there are "already connected / remove connection" indicators in the dropdown!
+            # Check if there are "already connected / remove connection" indicators in the dropdown
             remove_terms = [
                 t("li_remove_connection"), t("li_remove_connection_alt"),
                 "Remove Connection", "Remove connection", "Remover conexão", "Desfazer conexão",
@@ -898,6 +942,11 @@ def find_connect_button_on_profile(page):
                         except:
                             pass
 
+            # Try vanity selectors inside the opened "More" menu
+            if try_vanity_selectors():
+                return "found"
+
+            # Fallback to text-based menu selectors
             for term in unique_connect:
                 dropdown_selectors = [
                     f"div.artdeco-dropdown__content >> text={term}",
@@ -942,12 +991,50 @@ def find_connect_button_on_profile(page):
     return "not_found"
 
 
+def is_invitation_dialog_visible(page):
+    """Checks if a visible dialog containing invitation terms (and not premium warnings) is present."""
+    dialog_selectors = ["dialog", "div[role='dialog']", "div.artdeco-modal", "div[data-test-modal]"]
+    for sel in dialog_selectors:
+        loc = page.locator(sel)
+        for i in range(loc.count()):
+            try:
+                el = loc.nth(i)
+                if el.is_visible(timeout=500):
+                    text = el.inner_text() or ""
+                    has_conn = any(term in text for term in ["nota", "note", "personalizar", "customize", "convite", "invitation"])
+                    has_premium = any(term in text for term in ["Reative o Premium", "Upgrade", "limite", "limit"])
+                    if has_conn and not has_premium:
+                        return True
+            except:
+                pass
+    return False
+
+
+def is_premium_modal_visible(page):
+    """Checks if a visible dialog containing premium upgrade/limit warning terms is present."""
+    dialog_selectors = ["dialog", "div[role='dialog']", "div[data-test-modal]", "div.artdeco-modal"]
+    premium_indicators = ["Premium", "Upgrade", "limite", "limit", "assinar", "subscribe", "personalizada", "personalized", "reative"]
+    for sel in dialog_selectors:
+        loc = page.locator(sel)
+        for i in range(loc.count()):
+            try:
+                el = loc.nth(i)
+                if el.is_visible(timeout=500):
+                    text = el.inner_text() or ""
+                    if any(ind.lower() in text.lower() for ind in premium_indicators):
+                        return True
+            except:
+                pass
+    return False
+
+
 def handle_connection_dialog(page, note_text=""):
     """Handles the connection invitation dialog with note limit warning and Premium fallback."""
     human_delay(1.5, 3)
 
     dialog_visible = False
     dialog_selectors = [
+        "dialog",
         "div[role='dialog']",
         "div.artdeco-modal",
         "div.send-invite",
@@ -968,34 +1055,22 @@ def handle_connection_dialog(page, note_text=""):
 
     # Helper function to check and handle premium modal
     def check_and_handle_premium():
-        premium_indicators = ["Premium", "Upgrade", "limite", "limit", "assinar", "subscribe", "personalizada", "personalized"]
-        is_premium_visible = False
-        for ind in premium_indicators:
-            loc = page.locator(f"div.artdeco-modal:has-text('{ind}')")
-            try:
-                if loc.count() > 0 and loc.first.is_visible(timeout=1000):
-                    is_premium_visible = True
-                    break
-            except:
-                pass
-        
-        if is_premium_visible:
-            print("    ⚠️ Premium limitation modal detected! Handling fallback...")
+        if is_premium_modal_visible(page):
+            print("    ⚠️ Premium limitation modal detected! Saving debug dump and handling fallback...")
+            save_html_debug(page, "Premium_Warning_Modal")
             global NOTES_BLOCKED_BY_PREMIUM
             NOTES_BLOCKED_BY_PREMIUM = True
             
             # 1. Close premium modal by clicking close button first (X icon)
             close_clicked = False
             close_selectors = [
-                "button[aria-label*='Close']",
-                "button[aria-label*='close']",
-                "button[aria-label*='Fechar']",
-                "button[aria-label*='fechar']",
-                "button[aria-label*='Dismiss']",
-                "button[aria-label*='dismiss']",
+                "button[aria-label*='Close' i]",
+                "button[aria-label*='Fechar' i]",
+                "button[aria-label*='Dismiss' i]",
+                "button[aria-label*='Descartar' i]",
+                "dialog button[aria-label*='Fechar' i]",
+                "dialog button[aria-label*='Close' i]",
                 "button.artdeco-modal__dismiss",
-                "[data-test-modal] button[aria-label*='Dismiss']",
-                "[data-test-modal] button.artdeco-modal__dismiss",
             ]
             for sel in close_selectors:
                 try:
@@ -1009,9 +1084,9 @@ def handle_connection_dialog(page, note_text=""):
             
             if not close_clicked:
                 page.keyboard.press("Escape")
-            time.sleep(1.5) # Let close animation complete
+            time.sleep(2.0) # Let close animation complete
             
-            # 2. Try to click Cancel (Cancelar) on the note editor to go back to the main invitation dialog
+            # 2. Try to click Cancel (Cancelar) on the note editor to go back to the main invitation dialog if it's somehow still open
             cancel_clicked = False
             cancel_labels = ["Cancel", "Cancelar", "Voltar", "Go back"]
             for lbl in cancel_labels:
@@ -1026,23 +1101,13 @@ def handle_connection_dialog(page, note_text=""):
                     pass
             
             # 3. Check if the connection dialog is still visible
-            dialog_visible = False
-            dialog_selectors = ["div[role='dialog']", "div.artdeco-modal", "div.send-invite"]
-            for ds in dialog_selectors:
-                try:
-                    if page.locator(ds).first.is_visible(timeout=1000):
-                        dialog_visible = True
-                        break
-                except:
-                    pass
-            
-            if dialog_visible:
+            if is_invitation_dialog_visible(page):
                 print("    ✅ Successfully returned to the main invitation dialog.")
                 return False # Stay in modal flow
             else:
                 print("    🔄 Connection dialog closed. Doing a clean retry from the profile page...")
                 dismiss_overlays(page)
-                time.sleep(2.0) # Let backdrop overlays fully fade out
+                time.sleep(2.5) # Let backdrop overlays fully fade out
                 return True # Clean retry
         return False
 
